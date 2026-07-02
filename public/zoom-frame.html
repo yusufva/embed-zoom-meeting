@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Zoom Meeting Frame</title>
+    <!-- Force standard embedded styles -->
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.13.0/css/bootstrap.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.13.0/css/react-select.css" />
+    <style>
+        /* 
+          1. Ensure the base window frame handles a strict 100% boundary 
+          without ever spawning an outer browser scrollbar.
+        */
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #09090b;
+            overflow: hidden;
+        }
+
+        /* 
+          2. Reset the meeting element to look like a clean, block-level canvas.
+          We DO NOT use absolute wildcard overrides on the child nodes anymore!
+        */
+        #meetingSDKElement {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            position: relative;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Zoom will safely target this inside its own context -->
+    <div id="meetingSDKElement"></div>
+
+    <!-- Load Zoom Dependencies independently of Next.js React 19 -->
+    <script src="https://source.zoom.us/3.13.0/lib/vendor/react.min.js"></script>
+    <script src="https://source.zoom.us/3.13.0/lib/vendor/react-dom.min.js"></script>
+    <script src="https://source.zoom.us/3.13.0/lib/vendor/redux.min.js"></script>
+    <script src="https://source.zoom.us/3.13.0/lib/vendor/redux-thunk.min.js"></script>
+    <script src="https://source.zoom.us/3.13.0/lib/vendor/lodash.min.js"></script>
+    <script src="https://source.zoom.us/zoom-meeting-embedded-3.13.0.min.js"></script>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const meetingNumber = urlParams.get('mn');
+        const passcode = urlParams.get('pwd');
+        const userName = urlParams.get('name') || 'Web Guest';
+        const userEmail = urlParams.get('email') || 'user@example.com';
+        const role = parseInt(urlParams.get('role') || '0', 10);
+
+        async function initMeeting() {
+            try {
+                const res = await fetch('/api/zoom/signature', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ meetingNumber, role })
+                });
+
+                const { signature, sdkKey } = await res.json();
+                const client = ZoomMtgEmbedded.createClient();
+                const frameWidth = window.innerWidth;
+                const frameHeight = window.innerHeight - 5;
+
+                await client.init({
+                    zoomAppRoot: document.getElementById('meetingSDKElement'),
+                    language: 'en-US',
+                    patchJsMedia: true,
+                    libBUrl: 'https://source.zoom.us/3.13.0/lib',
+                    customize: {
+                        video: {
+                            defaultViewType: 'gallery',
+                            isResizable: false, // Allow Zoom to scale natively with your window
+                            viewSizes: {
+                                default: {
+                                    width: frameWidth,  // Set exact current container limits
+                                    height: frameHeight
+                                },
+                                ribbon: {
+                                    width: 320,
+                                    height: frameHeight
+                                }
+                            }
+                        }
+                    }
+                });
+
+                await client.join({
+                    sdkKey,
+                    signature,
+                    meetingNumber,
+                    password: passcode,
+                    userName,
+                    userEmail
+                });
+
+                console.log("Successfully loaded into room context!");
+            } catch (err) {
+                console.error("Zoom Iframe Error:", err);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (meetingNumber) {
+                initMeeting();
+            }
+        });
+    </script>
+</body>
+
+</html>
