@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['everyday-ardently-staining.ngrok-free.dev', 'localhost:3000'],
   /* config options here */
   async headers() {
     return [
@@ -26,7 +27,7 @@ const nextConfig: NextConfig = {
     },
   },
   webpack: (config) => {
-    config.resolve.alias = {
+    config.resolve.ias = {
       ...config.resolve.alias,
       '@zoom/download-manager': path.resolve(__dirname, './src/utils/zoom-mock.js'),
     };

@@ -14,6 +14,7 @@ export default function MeetingRoomClient() {
   const userEmail = searchParams.get('userEmail') || 'user@example.com';
   const roleVal = searchParams.get('role') || '0';
   const role = roleVal === '1' ? 1 : 0;
+  const zak = searchParams.get('zak') || '';
 
   if (!meetingNumber || !userName) {
     return (
@@ -72,7 +73,7 @@ export default function MeetingRoomClient() {
             userName={userName}
             userEmail={userEmail}
             role={role}
-          // onLeave={() => router.push('/meetings?left=true')}
+            zak={zak}
           />
         </div>
       </main>

@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useCookies } from 'next-client-cookies';
 
 interface JoinClientProps {
   hasConfig: boolean;
   sdkKeySnippet: string;
 }
 
-export default function JoinClient({ hasConfig, sdkKeySnippet }: JoinClientProps) {
+export default function JoinClient({ hasConfig, sdkKeySnippet }: JoinClientProps,) {
   const router = useRouter();
   const [meetingNumber, setMeetingNumber] = useState('');
   const [passcode, setPasscode] = useState('');
@@ -17,6 +19,49 @@ export default function JoinClient({ hasConfig, sdkKeySnippet }: JoinClientProps
   const [role, setRole] = useState<'0' | '1'>('0'); // '0' = Participant, '1' = Host
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<{ loggedIn: boolean; email?: string; displayName?: string; zakToken?: string } | null>(null);
+  const params = useSearchParams()
+  const token = params.get('token');
+  const cookies = useCookies()
+
+  useEffect(() => {
+    async function checkProfile() {
+      try {
+        const res = await fetch('/api/zoom/profile');
+        if (res.ok) {
+          const data = await res.json();
+          setProfile(data);
+          if (data.loggedIn) {
+            if (data.displayName) setUserName(data.displayName);
+            if (data.email) setUserEmail(data.email);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile', err);
+      }
+    }
+    checkProfile();
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      cookies.set('zoom_access_token', token);
+      // router.push('/meetings');
+    }
+  }, [token]);
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch('/api/zoom/profile?action=logout');
+      if (res.ok) {
+        setProfile({ loggedIn: false });
+        setUserName('');
+        setUserEmail('');
+      }
+    } catch (err) {
+      console.error('Failed to log out', err);
+    }
+  };
 
   const formatMeetingNumber = (val: string) => {
     // Remove all non-digits
@@ -87,16 +132,41 @@ export default function JoinClient({ hasConfig, sdkKeySnippet }: JoinClientProps
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <div>
-              <span className="font-bold">Missing configuration:</span> `ZOOM_SDK_KEY` or `ZOOM_SDK_SECRET` is not set in `.env.local`. Please configure them to enable secure signatures.
+              <span className="font-bold">Missing SDK Key:</span> `ZOOM_SDK_KEY` or `ZOOM_SDK_SECRET` is not set in `.env.local`. Signature generation will fail.
             </div>
           </div>
         )}
 
-        {hasConfig && (
-          <div className="mb-6 py-2 px-4 bg-zinc-900/60 border border-zinc-800 rounded-full text-center text-xs text-zinc-500 shadow-inner flex items-center justify-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Securely connected {/* using SDK Key: <code className="font-mono text-zinc-300">{sdkKeySnippet}</code> */}</span>
-          </div>
+        {/* OAuth Profile Status Alert */}
+        {profile && (
+          profile.loggedIn ? (
+            <div className="mb-6 py-2.5 px-4 bg-emerald-950/30 border border-emerald-500/20 rounded-2xl text-xs flex justify-between items-center shadow-lg animate-in fade-in duration-300">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Connected to Zoom as <strong className="text-zinc-200">{profile.email}</strong></span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-2.5 py-1 bg-emerald-900/30 hover:bg-emerald-900/60 border border-emerald-500/20 text-emerald-300 rounded-full font-semibold transition cursor-pointer text-[10px]"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <div className="mb-6 py-2.5 px-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl text-xs flex justify-between items-center shadow-lg animate-in fade-in duration-300">
+              <div className="flex items-center gap-2 text-zinc-400">
+                <span className="w-2 h-2 rounded-full bg-zinc-600" />
+                <span>Hosting meetings requires Zoom sign-in</span>
+              </div>
+              <a
+                href="/meetings/create"
+                className="px-2.5 py-1 bg-indigo-900/45 hover:bg-indigo-900 border border-indigo-500/20 text-indigo-300 rounded-full font-semibold transition cursor-pointer text-[10px]"
+              >
+                Sign In
+              </a>
+            </div>
+          )
         )}
 
         {/* Join form card */}
@@ -175,8 +245,8 @@ export default function JoinClient({ hasConfig, sdkKeySnippet }: JoinClientProps
                   type="button"
                   onClick={() => setRole('0')}
                   className={`py-3 px-4 rounded-xl border text-sm font-semibold transition duration-200 cursor-pointer text-center ${role === '0'
-                      ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20'
-                      : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20'
+                    : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                     }`}
                 >
                   Participant
@@ -185,8 +255,8 @@ export default function JoinClient({ hasConfig, sdkKeySnippet }: JoinClientProps
                   type="button"
                   onClick={() => setRole('1')}
                   className={`py-3 px-4 rounded-xl border text-sm font-semibold transition duration-200 cursor-pointer text-center ${role === '1'
-                      ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20'
-                      : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                    ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-600/20'
+                    : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                     }`}
                 >
                   Host
@@ -212,6 +282,15 @@ export default function JoinClient({ hasConfig, sdkKeySnippet }: JoinClientProps
               )}
             </button>
           </form>
+
+          <div className="text-center mt-5 pt-3 border-t border-zinc-800/50">
+            <a
+              href="/meetings/create"
+              className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition inline-flex items-center gap-1.5 hover:underline cursor-pointer"
+            >
+              Need to host? Create a meeting room &rarr;
+            </a>
+          </div>
         </div>
 
         {/* Footer */}

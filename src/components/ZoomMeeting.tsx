@@ -8,6 +8,7 @@ interface ZoomMeetingProps {
   userName: string;
   userEmail?: string;
   role: number; // 0 for participant, 1 for host
+  zak?: string;
 }
 
 export default function ZoomMeeting({
@@ -16,6 +17,7 @@ export default function ZoomMeeting({
   userName,
   userEmail = 'user@example.com',
   role,
+  zak = '',
 }: ZoomMeetingProps) {
 
   // Construct the secure URL parameters to safely pass down to our isolated wrapper page
@@ -25,6 +27,7 @@ export default function ZoomMeeting({
     name: userName,
     email: userEmail,
     role: role.toString(),
+    zak: zak,
   });
 
   return (

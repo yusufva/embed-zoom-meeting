@@ -55,6 +55,7 @@
         const userName = urlParams.get('name') || 'Web Guest';
         const userEmail = urlParams.get('email') || 'user@example.com';
         const role = parseInt(urlParams.get('role') || '0', 10);
+        const zak = urlParams.get('zak') || '';
 
         async function initMeeting() {
             try {
@@ -92,14 +93,20 @@
                     }
                 });
 
-                await client.join({
+                const joinParams = {
                     sdkKey,
                     signature,
                     meetingNumber,
                     password: passcode,
                     userName,
                     userEmail
-                });
+                };
+
+                if (zak) {
+                    joinParams.zak = zak;
+                }
+
+                await client.join(joinParams);
 
                 console.log("Successfully loaded into room context!");
             } catch (err) {
